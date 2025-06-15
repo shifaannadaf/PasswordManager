@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+</head>
+<body class="container mt-5">
+<div class="d-flex justify-content-between">
+    <h2>Your Saved Passwords</h2>
+    <button class="btn btn-danger" onclick="logout()">Logout</button>
+</div>
+<table class="table" id="passwordTable">
+    <thead>
+    <tr><th>Site</th><th>Username</th><th>Password</th></tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<h3>Add New Password</h3>
+<div class="mb-3">
+    <input type="text" id="site" placeholder="Site name" class="form-control"/>
+</div>
+<div class="mb-3">
+    <input type="text" id="user" placeholder="Username" class="form-control"/>
+</div>
+<div class="mb-3">
+    <input type="text" id="pass" placeholder="Password" class="form-control"/>
+</div>
+<button onclick="addPassword()" class="btn btn-success">Add</button>
+
+<script>
+    const token = localStorage.getItem('token');
+    if (!token) {
+  alert("Please log in first.");
+  window.location.href = "/login.html";
+}
+
+    async function loadPasswords() {
+      const res = await fetch('/api/passwords', {
+        headers: {
+          'Authorization': 'Bearer ' + token
+        }
+      });
+      const data = await res.json();
+      const tbody = document.querySelector('#passwordTable tbody');
+      tbody.innerHTML = "";
+      data.forEach(entry => {
+        const row = `<tr data-id="${entry.id}">
+    <td><input value="${entry.siteName}" class="form-control site-input"/></td>
+    <td><input value="${entry.username}" class="form-control user-input"/></td>
+    <td><input value="${entry.password}" class="form-control pass-input"/></td>
+    <td>
+      <button class="btn btn-sm btn-primary" onclick="updatePassword(${entry.id}, this)">Update</button>
+      <button class="btn btn-sm btn-danger" onclick="deletePassword(${entry.id})">Delete</button>
+    </td>
+  </tr>`;
+        tbody.innerHTML += row;
+      });
+    }
+
+    async function addPassword() {
+      const res = await fetch('/api/passwords', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({
+          siteName: document.getElementById('site').value,
+          username: document.getElementById('user').value,
+          password: document.getElementById('pass').value
+        })
+      });
+      if (res.ok) {
+        alert("Password added!");
+        loadPasswords();
+      } else {
+        alert("Error adding password");
+      }
+    }
+
+
+    function logout() {
+  localStorage.removeItem('token');     // Clear JWT
+  window.location.href = "/login.html"; // Redirect to login page
+}
+async function deletePassword(id) {
+  if (!confirm("Are you sure you want to delete this password?")) return;
+
+  const res = await fetch('/api/passwords/' + id, {
+    method: 'DELETE',
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+
+  if (res.ok) {
+    alert("Deleted!");
+    loadPasswords();
+  } else {
+    alert("Failed to delete");
+  }
+}
+
+async function updatePassword(id, button) {
+  const row = button.closest('tr');
+  const site = row.querySelector('.site-input').value;
+  const user = row.querySelector('.user-input').value;
+  const pass = row.querySelector('.pass-input').value;
+
+  const res = await fetch('/api/passwords/' + id, {
+    method: 'PUT',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      siteName: site,
+      username: user,
+      password: pass
+    })
+  });
+
+  if (res.ok) {
+    alert("Updated!");
+    loadPasswords();
+  } else {
+    alert("Failed to update");
+  }
+}
+
+    loadPasswords(); // auto-load on page load
+</script>
+</body>
+</html>
